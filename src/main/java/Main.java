@@ -21,7 +21,7 @@ public class Main {
       // Wait for connection from client.
       clientSocket = serverSocket.accept();
       byte[] correlation_id = new byte[4];
-      clientSocket.getInputStream().readNBytes(correlation_id, 8, 4);
+      clientSocket.getInputStream().read(correlation_id, 8, 4);
       clientSocket.getOutputStream()
           .write(new byte[] { 0, 0, 0, 0, correlation_id[0], correlation_id[1], correlation_id[2], correlation_id[3] });
     } catch (IOException e) {
