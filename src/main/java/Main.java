@@ -32,11 +32,16 @@ public class Main {
       int correlationId = input.readInt();
       output.writeShort(0);
       output.writeInt(correlationId);
+      clientSocket.getOutputStream().write(new byte[] { 0, 0, 0, 0 });
+      clientSocket.getOutputStream().write(correlationId);
       if (requestApiVersion < 0 || requestApiVersion > 4) {
-        output.writeShort(35);
+        clientSocket.getOutputStream().write(
+            new byte[] { 0, 35 }); // error_code 35
       } else {
-        output.writeShort(requestApiVersion);
+
+        clientSocket.getOutputStream().write(requestApiVersion);
       }
+
     } catch (IOException e) {
       System.out.println("IOException: " + e.getMessage());
     } finally {
