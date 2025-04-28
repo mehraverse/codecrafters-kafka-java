@@ -9,47 +9,26 @@ public class Main {
     System.err.println("Logs from your program will appear here!");
     // Uncomment this block to pass the first stage
     //
-    ServerSocket serverSocket = null;
-    Socket clientSocket = null;
-    int port = 9092;
-    try {
-      serverSocket = new ServerSocket(port);
-      // Since the tester restarts your program quite often, setting
-      // SO_REUSEADDR ensures that we don't run into 'Address already in use'
-      // errors
-      serverSocket.setReuseAddress(true);
-      // Wait for connection from client.
-      clientSocket = serverSocket.accept();
-      byte[] request = new byte[12];
-      int bytesRead = clientSocket.getInputStream().read(request);
-      if (bytesRead != 12) {
-        throw new IOException("Incomplete request received");
-      }
-      byte[] api_version = new byte[4];
-      byte[] correlation_id = new byte[4];
-      System.arraycopy(request, 6, api_version, 0, 2);
-      System.arraycopy(request, 8, correlation_id, 0, 4);
-      int apiVersionValue = ((api_version[0] & 0xFF) << 8) | (api_version[1] & 0xFF);
-      if (apiVersionValue < 0 || apiVersionValue > 4) {
-        clientSocket.getOutputStream().write(new byte[] { 0, 0, 0, 0 });
-        clientSocket.getOutputStream().write(correlation_id);
-        clientSocket.getOutputStream().write(
-            new byte[] { 0, 35 }); // error_code 35
-      } else {
-        clientSocket.getOutputStream().write(new byte[] { 0, 0, 0, 0 });
-        clientSocket.getOutputStream().write(correlation_id);
-        clientSocket.getOutputStream().write(api_version);
+    try (ServerSocket kafkaServerSocket = new ServerSocket(9092)) {
+      kafkaServerSocket.setReuseAddress(true);
+      try (Socket kafkaClientSocket = kafkaServerSocket.accept()) {
+        byte[] clientRequest = new byte[12];
+        if (kafkaClientSocket.getInputStream().read(clientRequest) != 12) {
+          throw new IOException("Incomplete request received");
+        }
+
+        byte[] apiVersionBytes = { clientRequest[6], clientRequest[7] };
+        byte[] correlationIdBytes = { clientRequest[8], clientRequest[9], clientRequest[10], clientRequest[11] };
+        int apiVersion = ((apiVersionBytes[0] & 0xFF) << 8) | (apiVersionBytes[1] & 0xFF);
+
+        kafkaClientSocket.getOutputStream().write(new byte[] { 0, 0, 0, 0 });
+        kafkaClientSocket.getOutputStream().write(correlationIdBytes);
+        kafkaClientSocket.getOutputStream().write(apiVersion < 0 || apiVersion > 4
+            ? new byte[] { 0, 35 } // error_code 35
+            : apiVersionBytes);
       }
     } catch (IOException e) {
       System.out.println("IOException: " + e.getMessage());
-    } finally {
-      try {
-        if (clientSocket != null) {
-          clientSocket.close();
-        }
-      } catch (IOException e) {
-        System.out.println("IOException: " + e.getMessage());
-      }
     }
   }
 }
