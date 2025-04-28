@@ -33,7 +33,7 @@ public class Main {
       output.writeInt(0);
       output.writeInt(correlationId);
       if (requestApiVersion < 0 || requestApiVersion > 4) {
-        output.writeInt(35);
+        output.writeShort(35);
       } else {
         output.writeShort(requestApiVersion);
       }
