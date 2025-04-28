@@ -36,7 +36,6 @@ public class Main {
       if (requestApiVersion < 0 || requestApiVersion > 4) {
         output.writeShort(35);
       } else {
-        output.writeShort(0); // no error
         output.writeShort(requestApiVersion); // echo version back properly
       }
       output.flush();
