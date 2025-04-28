@@ -20,8 +20,13 @@ public class Main {
       serverSocket.setReuseAddress(true);
       // Wait for connection from client.
       clientSocket = serverSocket.accept();
+      byte[] request = new byte[12];
+      int bytesRead = clientSocket.getInputStream().read(request);
+      if (bytesRead != 12) {
+        throw new IOException("Incomplete request received");
+      }
       byte[] correlation_id = new byte[4];
-      clientSocket.getInputStream().read(correlation_id, 8, 4);
+      System.arraycopy(request, 8, correlation_id, 0, 4);
       clientSocket.getOutputStream()
           .write(new byte[] { 0, 0, 0, 0, correlation_id[0], correlation_id[1], correlation_id[2], correlation_id[3] });
     } catch (IOException e) {
