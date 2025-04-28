@@ -1,3 +1,5 @@
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -11,6 +13,8 @@ public class Main {
 
     ServerSocket serverSocket = null;
     Socket clientSocket = null;
+    DataInputStream input;
+    DataOutputStream output = null;
     int port = 9092;
     try {
       serverSocket = new ServerSocket(port);
@@ -18,28 +22,18 @@ public class Main {
       // SO_REUSEADDR ensures that we don't run into 'Address already in use'
       // errors
       serverSocket.setReuseAddress(true);
-      // Wait for connection from client.
       clientSocket = serverSocket.accept();
-      byte[] request = new byte[12];
-      int bytesRead = clientSocket.getInputStream().read(request);
-      if (bytesRead != 12) {
-        throw new IOException("Incomplete request received");
-      }
-      byte[] api_version = new byte[4];
-      byte[] correlation_id = new byte[4];
-      System.arraycopy(request, 6, api_version, 0, 2);
-      System.arraycopy(request, 8, correlation_id, 0, 4);
-      int apiVersionValue = ((api_version[0] & 0xFF) << 8) | (api_version[1] & 0xFF);
-      if (apiVersionValue < 0 || apiVersionValue > 4) {
-        clientSocket.getOutputStream().write(new byte[] { 0, 0, 0, 0 });
-        clientSocket.getOutputStream().write(correlation_id);
-        clientSocket.getOutputStream().write(
-            new byte[] { 0, 35 }); // error_code 35
-      } else {
-        clientSocket.getOutputStream().write(new byte[] { 0, 0, 0, 0 });
-        clientSocket.getOutputStream().write(correlation_id);
-        clientSocket.getOutputStream().write(api_version);
-      }
+      input = new DataInputStream(clientSocket.getInputStream());
+      output = new DataOutputStream(clientSocket.getOutputStream());
+      int messageSize = input.readInt();
+      short requestApiKey = input.readShort();
+      short requestApiVersion = input.readShort();
+      int correlationId = input.readInt();
+
+      output.writeInt(messageSize);
+      output.writeInt(correlationId);
+      output.writeShort(18);
+      output.writeShort(requestApiVersion);
     } catch (IOException e) {
       System.out.println("IOException: " + e.getMessage());
     } finally {
