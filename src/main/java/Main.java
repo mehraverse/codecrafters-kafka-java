@@ -30,7 +30,7 @@ public class Main {
       short requestApiKey = input.readShort();
       short requestApiVersion = input.readShort();
       int correlationId = input.readInt();
-      output.writeInt(0);
+      output.writeShort(0);
       output.writeInt(correlationId);
       if (requestApiVersion < 0 || requestApiVersion > 4) {
         output.writeShort(35);
