@@ -26,14 +26,12 @@ public class Main {
       clientSocket = serverSocket.accept();
       input = new DataInputStream(clientSocket.getInputStream());
       output = new DataOutputStream(clientSocket.getOutputStream());
-
-      int message_size = input.readInt();
-      short request_api_key = input.readShort();
-      short request_api_version = input.readShort();
-      int correlation_id = input.readInt();
-
+      int messageSize = input.readInt();
+      short requestApiKey = input.readShort();
+      short requestApiVersion = input.readShort();
+      int correlationId = input.readInt();
       output.writeInt(0);
-      output.writeInt(correlation_id);
+      output.writeInt(correlationId);
       output.writeShort(35);
     } catch (IOException e) {
       System.out.println("IOException: " + e.getMessage());
