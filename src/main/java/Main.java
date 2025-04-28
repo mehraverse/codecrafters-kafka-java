@@ -14,8 +14,6 @@ public class Main {
     //
     ServerSocket serverSocket = null;
     Socket clientSocket = null;
-    DataInputStream input;
-    DataOutputStream output = null;
     int port = 9092;
     try {
       serverSocket = new ServerSocket(port);
@@ -24,21 +22,31 @@ public class Main {
       serverSocket.setReuseAddress(true);
       // Wait for connection from client.
       clientSocket = serverSocket.accept();
-      input = new DataInputStream(clientSocket.getInputStream());
-      output = new DataOutputStream(clientSocket.getOutputStream());
-      int messageSize = input.readInt();
-      short requestApiKey = input.readShort();
-      short requestApiVersion = input.readShort();
-      int correlationId = input.readInt();
-      output.writeShort(0);
-      output.writeInt(correlationId);
 
-      if (requestApiVersion < 0 || requestApiVersion > 4) {
-        output.writeShort(35);
-      } else {
-        output.writeShort(requestApiVersion); // echo version back properly
+      // Read the request
+      byte[] request = new byte[12];
+      int bytesRead = clientSocket.getInputStream().read(request);
+      if (bytesRead != 12) {
+        throw new IOException("Incomplete request received");
       }
-      output.flush();
+
+      byte[] api_version = new byte[4];
+      byte[] correlation_id = new byte[4];
+      System.arraycopy(request, 6, api_version, 0, 2);
+      System.arraycopy(request, 8, correlation_id, 0, 4);
+
+      clientSocket.getOutputStream().write(new byte[] { 0, 0, 0, 0 });
+      clientSocket.getOutputStream().write(correlation_id);
+
+      int apiVersionValue = ((api_version[0] & 0xFF) << 8) | (api_version[1] & 0xFF);
+      if (apiVersionValue < 0 || apiVersionValue > 4) {
+        clientSocket.getOutputStream().write(
+            new byte[] { 0, 35 }); // error_code 35
+      } else {
+        clientSocket.getOutputStream().write(api_version);
+      }
+      clientSocket.getOutputStream().flush();
+
     } catch (IOException e) {
       System.out.println("IOException: " + e.getMessage());
     } finally {
