@@ -30,10 +30,12 @@ public class Main {
       short requestApiVersion = input.readShort();
       int correlationId = input.readInt();
 
-      output.writeInt(messageSize);
+      output.writeInt(10);
       output.writeInt(correlationId);
-      output.writeShort(18);
+      output.writeShort(0);
       output.writeShort(requestApiVersion);
+
+      output.flush();
     } catch (IOException e) {
       System.out.println("IOException: " + e.getMessage());
     } finally {
