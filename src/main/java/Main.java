@@ -25,10 +25,21 @@ public class Main {
       if (bytesRead != 12) {
         throw new IOException("Incomplete request received");
       }
+      byte[] api_version = new byte[4];
       byte[] correlation_id = new byte[4];
+      System.arraycopy(request, 6, api_version, 0, 2);
       System.arraycopy(request, 8, correlation_id, 0, 4);
-      clientSocket.getOutputStream()
-          .write(new byte[] { 0, 0, 0, 0, correlation_id[0], correlation_id[1], correlation_id[2], correlation_id[3] });
+
+      int apiVersionValue = ((api_version[0] & 0xFF) << 8) | (api_version[1] & 0xFF);
+      if (apiVersionValue < 0 || apiVersionValue > 4) {
+        clientSocket.getOutputStream().write(new byte[] { 0, 0, 0, 0 });
+        clientSocket.getOutputStream().write(correlation_id);
+        clientSocket.getOutputStream().write(new byte[] { 0, 35 }); // error_code 35
+      } else {
+        clientSocket.getOutputStream().write(new byte[] { 0, 0, 0, 0 });
+        clientSocket.getOutputStream().write(correlation_id);
+        clientSocket.getOutputStream().write(api_version);
+      }
     } catch (IOException e) {
       System.out.println("IOException: " + e.getMessage());
     } finally {
