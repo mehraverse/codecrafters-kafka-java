@@ -32,7 +32,11 @@ public class Main {
       int correlationId = input.readInt();
       output.writeInt(0);
       output.writeInt(correlationId);
-      output.writeShort(35);
+      if (requestApiVersion < 0 || requestApiVersion > 4) {
+        output.writeInt(35);
+      } else {
+        output.writeShort(requestApiVersion);
+      }
     } catch (IOException e) {
       System.out.println("IOException: " + e.getMessage());
     } finally {
