@@ -3,6 +3,7 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.nio.ByteBuffer;
 
 public class Main {
   public static void main(String[] args) {
@@ -13,8 +14,8 @@ public class Main {
 
     ServerSocket serverSocket = null;
     Socket clientSocket = null;
-    DataInputStream input;
-    DataOutputStream output = null;
+    DataInputStream in = null;
+    DataOutputStream out = null;
     int port = 9092;
     try {
       serverSocket = new ServerSocket(port);
@@ -23,19 +24,46 @@ public class Main {
       // errors
       serverSocket.setReuseAddress(true);
       clientSocket = serverSocket.accept();
-      input = new DataInputStream(clientSocket.getInputStream());
-      output = new DataOutputStream(clientSocket.getOutputStream());
-      int messageSize = input.readInt();
-      short requestApiKey = input.readShort();
-      short requestApiVersion = input.readShort();
-      int correlationId = input.readInt();
+      // read all bytes from the socket
+      in = new DataInputStream(clientSocket.getInputStream());
+      out = new DataOutputStream(clientSocket.getOutputStream());
+      byte[] messageSize = in.readNBytes(4);
+      byte[] apiKey = in.readNBytes(2);
+      byte[] apiVersion = in.readNBytes(2);
+      byte[] correlationID = in.readNBytes(4);
+      // byte[] requestBody = in.readNBytes(in.available());
 
-      output.writeInt(10);
-      output.writeInt(correlationId);
-      output.writeShort(0);
-      output.writeShort(requestApiVersion);
+      ByteBuffer responseBuffer = ByteBuffer.allocate(1024);
+      // Reserve space for message length
+      responseBuffer.putInt(0); // placeholder
 
-      output.flush();
+      // Correlation ID
+      responseBuffer.put(correlationID);
+
+      // Error code
+      short apiVersionValue = ByteBuffer.wrap(apiVersion).getShort();
+      short errorCode = (apiVersionValue < 0 || apiVersionValue > 4) ? (short) 35 : (short) 0;
+      responseBuffer.putShort(errorCode);
+
+      responseBuffer.put((byte) 2); // Compact array length = 1 element + 1
+      responseBuffer.putShort((short) 18); // API Key
+      responseBuffer.putShort((short) 0); // Min Version
+      responseBuffer.putShort((short) 4); // Max Version
+
+      // throttle_time_ms (INT32)
+      responseBuffer.putInt(0);
+
+      // Tagged fields
+      responseBuffer.putShort((short) 0); // No tagged fields
+
+      // Update message length
+      int messageLength = responseBuffer.position() - 4;
+      responseBuffer.putInt(0, messageLength);
+
+      // Write the response
+      out.write(responseBuffer.array(), 0, responseBuffer.position());
+      out.flush();
+
     } catch (IOException e) {
       System.out.println("IOException: " + e.getMessage());
     } finally {
