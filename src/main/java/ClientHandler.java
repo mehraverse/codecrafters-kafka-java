@@ -3,6 +3,7 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 
 public class ClientHandler implements Runnable {
     private final Socket clientSocket;
@@ -56,15 +57,22 @@ public class ClientHandler implements Runnable {
         short apiVersionValue = ByteBuffer.wrap(apiVersion).getShort();
         short errorCode = (apiVersionValue < 0 || apiVersionValue > 4) ? (short) 35 : (short) 0;
         responseBuffer.putShort(errorCode);
-        responseBuffer.put((byte) 2);
-        responseBuffer.putShort((short) 18); // APIVersions
+
+        responseBuffer.put((byte) 3);
+        // First API
+        responseBuffer.putShort((short) 18); // API Versions 18
         responseBuffer.putShort((short) 0); // Min version
         responseBuffer.putShort((short) 4); // Max version
-        responseBuffer.putShort((short) 75); // DescribeTopicPartitions
+        responseBuffer.put((byte) 0); // Tagged fields for this API (compact encoded 0)
+
+        // Second API
+        responseBuffer.putShort((short) 75); // DescribeTopicPartitions 75
         responseBuffer.putShort((short) 0); // Min version
         responseBuffer.putShort((short) 0); // Max version
+        responseBuffer.put((byte) 0); // Tagged fields for this API (compact encoded 0)
+
         responseBuffer.putInt(0); // Throttle time
-        responseBuffer.putShort((short) 0); // No tagged fields
+        responseBuffer.put((byte) 0); // No tagged fields
         int messageLength = responseBuffer.position() - 4;
         responseBuffer.putInt(0, messageLength);
         return responseBuffer;
