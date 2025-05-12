@@ -3,7 +3,6 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
 import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
 
 public class ClientHandler implements Runnable {
     private final Socket clientSocket;
@@ -32,7 +31,7 @@ public class ClientHandler implements Runnable {
                 in.skip(in.available());
 
                 // Handle the request and send a response
-                ByteBuffer responseBuffer = createResponseBuffer(apiVersion, correlationID);
+                ByteBuffer responseBuffer = createResponseBuffer(apiKey, apiVersion, correlationID);
 
                 out.write(responseBuffer.array(), 0, responseBuffer.position());
                 out.flush();
@@ -50,29 +49,41 @@ public class ClientHandler implements Runnable {
         }
     }
 
-    private ByteBuffer createResponseBuffer(byte[] apiVersion, byte[] correlationID) {
+    private ByteBuffer createResponseBuffer(byte[] apiKey, byte[] apiVersion, byte[] correlationID) {
         ByteBuffer responseBuffer = ByteBuffer.allocate(1024);
         responseBuffer.putInt(0); // Placeholder for message length
         responseBuffer.put(correlationID);
-        short apiVersionValue = ByteBuffer.wrap(apiVersion).getShort();
-        short errorCode = (apiVersionValue < 0 || apiVersionValue > 4) ? (short) 35 : (short) 0;
-        responseBuffer.putShort(errorCode);
+        // If API Key == 0x4b (75) (DescribeTopicPartitions)
+        if (ByteBuffer.wrap(apiKey).getShort() == 75) {
+            System.out.println("Received DescribeTopicPartitions request");
+            responseBuffer.put((byte) 0); // Tag Buffer
+            responseBuffer.putInt(0); // Throttle time
+            responseBuffer.putShort((short) 0); // Error code
+            responseBuffer.putShort((short) 0); // Throttle time
+            responseBuffer.put((byte) 0); // No tagged fields
+        }
 
-        responseBuffer.put((byte) 3);
-        // First API
-        responseBuffer.putShort((short) 18); // API Versions 18
-        responseBuffer.putShort((short) 0); // Min version
-        responseBuffer.putShort((short) 4); // Max version
-        responseBuffer.put((byte) 0); // Tagged fields for this API (compact encoded 0)
+        else {
+            short apiVersionValue = ByteBuffer.wrap(apiVersion).getShort();
+            short errorCode = (apiVersionValue < 0 || apiVersionValue > 4) ? (short) 35 : (short) 0;
+            responseBuffer.putShort(errorCode);
 
-        // Second API
-        responseBuffer.putShort((short) 75); // DescribeTopicPartitions 75
-        responseBuffer.putShort((short) 0); // Min version
-        responseBuffer.putShort((short) 0); // Max version
-        responseBuffer.put((byte) 0); // Tagged fields for this API (compact encoded 0)
+            responseBuffer.put((byte) 3);
+            // First API
+            responseBuffer.putShort((short) 18); // API Versions 18
+            responseBuffer.putShort((short) 0); // Min version
+            responseBuffer.putShort((short) 4); // Max version
+            responseBuffer.put((byte) 0); // Tagged fields for this API (compact encoded 0)
 
-        responseBuffer.putInt(0); // Throttle time
-        responseBuffer.put((byte) 0); // No tagged fields
+            // Second API
+            responseBuffer.putShort((short) 75); // DescribeTopicPartitions 75
+            responseBuffer.putShort((short) 0); // Min version
+            responseBuffer.putShort((short) 0); // Max version
+            responseBuffer.put((byte) 0); // Tagged fields for this API (compact encoded 0)
+
+            responseBuffer.putInt(0); // Throttle time
+            responseBuffer.put((byte) 0); // No tagged fields
+        }
         int messageLength = responseBuffer.position() - 4;
         responseBuffer.putInt(0, messageLength);
         return responseBuffer;
