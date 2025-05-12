@@ -57,9 +57,12 @@ public class ClientHandler implements Runnable {
         short errorCode = (apiVersionValue < 0 || apiVersionValue > 4) ? (short) 35 : (short) 0;
         responseBuffer.putShort(errorCode);
         responseBuffer.put((byte) 2);
-        responseBuffer.putShort((short) 18);
-        responseBuffer.putShort((short) 0);
-        responseBuffer.putShort((short) 4);
+        responseBuffer.putShort((short) 18); // APIVersions
+        responseBuffer.putShort((short) 0); // Min version
+        responseBuffer.putShort((short) 4); // Max version
+        responseBuffer.putShort((short) 75); // DescribeTopicPartitions
+        responseBuffer.putShort((short) 0); // Min version
+        responseBuffer.putShort((short) 0); // Max version
         responseBuffer.putInt(0); // Throttle time
         responseBuffer.putShort((short) 0); // No tagged fields
         int messageLength = responseBuffer.position() - 4;
