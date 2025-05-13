@@ -28,10 +28,53 @@ public class ClientHandler implements Runnable {
                 in.readFully(apiVersion);
                 byte[] correlationID = new byte[4];
                 in.readFully(correlationID);
+                byte[] clientIDLength = new byte[2];
+                in.readFully(clientIDLength);
+                byte[] clientID = new byte[ByteBuffer.wrap(clientIDLength).getShort()];
+                in.readFully(clientID);
+
+                byte[] topicsArrayLength = null;
+                byte[] topicNameLength = null;
+                byte[] topicName = null;
+
+                System.out.println("Client ID: " + new String(clientID));
+                if (ByteBuffer.wrap(apiKey).getShort() == 75) {
+                    System.out.println("Received DescribeTopicPartitions request");
+                    byte[] tagBufferLength = new byte[1];
+                    in.readFully(tagBufferLength);
+                    System.out.println("Tag Buffer Length: " + ByteBuffer.wrap(tagBufferLength).get());
+
+                    topicsArrayLength = new byte[1];
+                    in.readFully(topicsArrayLength);
+                    System.out.println("Topics Array Length: " + ByteBuffer.wrap(topicsArrayLength).get());
+
+                    topicNameLength = new byte[1];
+                    in.readFully(topicNameLength);
+                    System.out.println("Topic Name Length: " + ByteBuffer.wrap(topicNameLength).get());
+
+                    topicName = new byte[ByteBuffer.wrap(topicNameLength).get()];
+                    in.readFully(topicName);
+                    System.out.println("Topic Name: " + new String(topicName));
+
+                    byte[] tagBufferLength2 = new byte[1];
+                    in.readFully(tagBufferLength2);
+                    System.out.println("Tag Buffer Length: " + ByteBuffer.wrap(tagBufferLength2).get());
+
+                    byte[] responsePartitionLimit = new byte[4];
+                    in.readFully(responsePartitionLimit);
+                    System.out.println("Response Partition Limit: " + ByteBuffer.wrap(responsePartitionLimit).getInt());
+
+                    byte[] cursor = new byte[1];
+                    in.readFully(cursor);
+                    System.out.println("Cursor: " + ByteBuffer.wrap(cursor).get());
+                }
+
+                System.out.println("Remaining bytes in input stream: " + in.available());
                 in.skip(in.available());
 
                 // Handle the request and send a response
-                ByteBuffer responseBuffer = createResponseBuffer(apiKey, apiVersion, correlationID);
+                ByteBuffer responseBuffer = createResponseBuffer(apiKey, apiVersion, correlationID, topicsArrayLength,
+                        topicNameLength, topicName);
 
                 out.write(responseBuffer.array(), 0, responseBuffer.position());
                 out.flush();
@@ -49,7 +92,9 @@ public class ClientHandler implements Runnable {
         }
     }
 
-    private ByteBuffer createResponseBuffer(byte[] apiKey, byte[] apiVersion, byte[] correlationID) {
+    private ByteBuffer createResponseBuffer(byte[] apiKey, byte[] apiVersion, byte[] correlationID,
+            byte[] topicsArrayLength, byte[] topicNameLength, byte[] topicName) {
+        System.out.println("Creating response buffer");
         ByteBuffer responseBuffer = ByteBuffer.allocate(1024);
         responseBuffer.putInt(0); // Placeholder for message length
         responseBuffer.put(correlationID);
@@ -58,9 +103,17 @@ public class ClientHandler implements Runnable {
             System.out.println("Received DescribeTopicPartitions request");
             responseBuffer.put((byte) 0); // Tag Buffer
             responseBuffer.putInt(0); // Throttle time
-            responseBuffer.putShort((short) 0); // Error code
-            responseBuffer.putShort((short) 0); // Throttle time
-            responseBuffer.put((byte) 0); // No tagged fields
+            responseBuffer.put(topicsArrayLength);// Topic array length
+            responseBuffer.putShort((short) 3); // Error code
+            responseBuffer.put(topicNameLength); // Topic name length
+            responseBuffer.put(topicName); // Topic name
+            responseBuffer.put(new byte[16]); // 16-byte null ID
+            responseBuffer.put((byte) 0); // IsInternal == 0
+            responseBuffer.putInt(0x00000DF8); // TopicAuthorizedOperations
+            responseBuffer.put((byte) 0); // compact-encoded empty TAG_BUFFER
+
+            responseBuffer.put((byte) 0xff); // Cursor
+            responseBuffer.put((byte) 0); // Tag Buffer
         }
 
         else {
@@ -85,6 +138,7 @@ public class ClientHandler implements Runnable {
             responseBuffer.put((byte) 0); // No tagged fields
         }
         int messageLength = responseBuffer.position() - 4;
+        System.out.println("Message length: " + messageLength);
         responseBuffer.putInt(0, messageLength);
         return responseBuffer;
     }
